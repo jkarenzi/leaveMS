@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notification from LMS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .big-container {
+        width: 100%;
+        height: 100%;
+        background-color: #f4f4f4;
+        color: #333;
+    }
+    .email-container {
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #dddddd;
+    }
+    .header h1 {
+        color: #586AEA;
+    }
+    .header img {
+      max-width: 120px;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    .content h1 {
+      color: #586AEA;
+    }
+    .content p {
+      line-height: 1.6;
+      color: #333 !important;
+    }
+    .footer {
+      padding-top: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+    <div class="big-container">
+        <div class="email-container">
+            <div class="header">
+                <h1>Leave MS</h1>
+            </div>
+            <div class="content">
+                <p>
+                    Hello {{name}},
+                </p>
+              <p>
+                {{message}}
+              </p>
+            </div>
+            <div class="footer">
+                <p>
+                  Leave MS | Leave Management System<br />
+                  <a target="_blank" href="https://teamsync-3n5r.onrender.com">https://teamsync-3n5r.onrender.com</a>
+                </p>
+              </div>
+          </div>
+    </div>
+</body>
+</html>
