@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  frontend:
+    image: jkarenzi/lms-frontend:dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      - auth-service
+      - leave-service
+    networks:
+      - lms-network
+
+  auth-service:
+    image: jkarenzi/lms-auth-service:dev
+    ports:
+      - "4000:4000"
+      - "5005:5005"  # Remote debugging port
+    networks:
+      - lms-network
+
+  leave-service:
+    image: jkarenzi/lms-leave-service:dev
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Node.js debugging port
+    depends_on:
+      - auth-service
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge

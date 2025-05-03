@@ -4,7 +4,6 @@ import { Request, Response } from 'express';
 
 
 const createLeaveApplicationSchema = yup.object().shape({
-  employeeId: yup.string().required('Employee ID is required'),
   leaveTypeId: yup.string().required('Leave type is required'),
   startDate: yup.date().required('Start date is required'),
   endDate: yup

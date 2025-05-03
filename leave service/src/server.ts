@@ -3,6 +3,7 @@ import { AppDataSource } from './dbConfig'
 import dotenv from "dotenv";
 import cron from 'node-cron'
 import { processYearlyCarryOver } from './utils/processYearlyCarryOver';
+import processMonthlyAccrual from './utils/processMonthlyAccrual';
 dotenv.config();
 
 
@@ -13,6 +14,7 @@ AppDataSource.initialize()
     app.listen(PORT, () => {
       console.log("Server is running on " + PORT);
       cron.schedule('1 0 1 1 *', processYearlyCarryOver)
+      cron.schedule('0 1 1 * *', processMonthlyAccrual)
     });
     console.log("Data Source has been initialized!");
   })

@@ -50,7 +50,7 @@ export const initializeLeaveBalances = async (leaveTypeId: string) => {
                 const newBalance = leaveBalanceRepository.create({
                     employeeId: employee.id,
                     leaveType,
-                    balance: leaveType.defaultAnnualAllocation,
+                    balance: 0,
                     carriedOver: 0
                 });
                 
@@ -103,7 +103,7 @@ export const initializeEmployeeLeaveBalances = async (employeeId: string) => {
                 const newBalance = leaveBalanceRepository.create({
                     employeeId,
                     leaveType,
-                    balance: leaveType.defaultAnnualAllocation,
+                    balance: 0,
                     carriedOver: 0
                 });
                 

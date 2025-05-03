@@ -50,7 +50,7 @@ const NotificationProvider = ({ children }:IProps) => {
                 dispatch(addNotification(notification))
 
                 if (Notification.permission === 'granted' && !isPageVisibleRef.current) {
-                    new Notification('TeamSync', {
+                    new Notification('LeaveMS', {
                         body: notification.message,
                         icon: '/logo.png'
                     })

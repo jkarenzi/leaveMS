@@ -46,7 +46,9 @@ export default function Login() {
     if (user) {
       if (user.role === 'admin') {
         navigate('/admin/dashboard');
-      } else {
+      } else if(user.role === 'manager') {
+        navigate('/manager/dashboard');
+      }else{
         navigate('/staff/dashboard');
       }
     }

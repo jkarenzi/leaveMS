@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -6,34 +6,14 @@ import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import { FaFilter, FaUser, FaUsers, FaCalendarAlt } from 'react-icons/fa';
 import { EventContentArg, EventInput, EventMountArg } from '@fullcalendar/core';
+import { ClipLoader } from 'react-spinners';
+import { useAppSelector, useAppDispatch } from '../../redux/hooks';
+import { getAllLeaveApplications } from '../../redux/actions/leaveApplicationActions';
 
 // Type definitions
-interface TeamMember {
-  id: string;
-  name: string;
-  department: string;
-  avatar: string;
-}
-
 interface LeaveColorScheme {
   bg: string;
   text: string;
-}
-
-interface LeaveEvent extends EventInput {
-  id: string;
-  userId: string;
-  title: string;
-  start: string;
-  end: string;
-  leaveType: string;
-  extendedProps: {
-    employeeName: string;
-    avatar: string;
-    department: string;
-    userId?: string;
-    type?: string;
-  };
 }
 
 interface HolidayEvent extends EventInput {
@@ -48,22 +28,21 @@ interface HolidayEvent extends EventInput {
   };
 }
 
-// Mock data for team members
-const teamMembers: TeamMember[] = [
-  { id: 'user1', name: 'John Doe', department: 'Engineering', avatar: 'https://randomuser.me/api/portraits/men/1.jpg' },
-  { id: 'user2', name: 'Jane Smith', department: 'Engineering', avatar: 'https://randomuser.me/api/portraits/women/2.jpg' },
-  { id: 'user3', name: 'Robert Johnson', department: 'Engineering', avatar: 'https://randomuser.me/api/portraits/men/3.jpg' },
-  { id: 'user4', name: 'Emily Davis', department: 'Finance', avatar: 'https://randomuser.me/api/portraits/women/4.jpg' },
-  { id: 'user5', name: 'Michael Wilson', department: 'Marketing', avatar: 'https://randomuser.me/api/portraits/men/5.jpg' },
+// Tailwind color palette
+const COLOR_PALETTE: LeaveColorScheme[] = [
+  { bg: '#4CAF50', text: 'white' },  // Green
+  { bg: '#F44336', text: 'white' },  // Red
+  { bg: '#2196F3', text: 'white' },  // Blue
+  { bg: '#9C27B0', text: 'white' },  // Purple
+  { bg: '#FF9800', text: 'white' },  // Orange
+  { bg: '#00BCD4', text: 'white' },  // Cyan
+  { bg: '#673AB7', text: 'white' },  // Deep Purple
+  { bg: '#E91E63', text: 'white' },  // Pink
+  { bg: '#795548', text: 'white' },  // Brown
+  { bg: '#607D8B', text: 'white' },  // Blue Grey
+  { bg: '#FFC107', text: 'black' },  // Amber
+  { bg: '#009688', text: 'white' }   // Teal
 ];
-
-// Mock data for leave types with colors
-const leaveTypeColors: Record<string, LeaveColorScheme> = {
-  'Annual': { bg: '#4CAF50', text: 'white' },
-  'Sick': { bg: '#F44336', text: 'white' },
-  'Compassionate': { bg: '#9C27B0', text: 'white' },
-  'Maternity': { bg: '#E91E63', text: 'white' }
-};
 
 // Rwanda public holidays for 2025
 const rwandaHolidays: HolidayEvent[] = [
@@ -81,104 +60,90 @@ const rwandaHolidays: HolidayEvent[] = [
   { title: 'Boxing Day', start: '2025-12-26', allDay: true, extendedProps: { type: 'holiday' } },
 ];
 
-// Mock data for team leaves
-const generateTeamLeaves = (): LeaveEvent[] => {
-  const leaves: LeaveEvent[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      title: 'John Doe - Annual Leave',
-      start: '2025-05-05',
-      end: '2025-05-09',
-      leaveType: 'Annual',
-      extendedProps: {
-        employeeName: 'John Doe',
-        avatar: teamMembers[0].avatar,
-        department: teamMembers[0].department,
-        userId: 'user1'
-      }
-    },
-    {
-      id: '2',
-      userId: 'user2',
-      title: 'Jane Smith - Sick Leave',
-      start: '2025-05-07',
-      end: '2025-05-08',
-      leaveType: 'Sick',
-      extendedProps: {
-        employeeName: 'Jane Smith',
-        avatar: teamMembers[1].avatar,
-        department: teamMembers[1].department,
-        userId: 'user2'
-      }
-    },
-    {
-      id: '3',
-      userId: 'user3',
-      title: 'Robert Johnson - Compassionate Leave',
-      start: '2025-05-15',
-      end: '2025-05-18',
-      leaveType: 'Compassionate',
-      extendedProps: {
-        employeeName: 'Robert Johnson',
-        avatar: teamMembers[2].avatar,
-        department: teamMembers[2].department,
-        userId: 'user3'
-      }
-    },
-    {
-      id: '4',
-      userId: 'user4',
-      title: 'Emily Davis - Maternity Leave',
-      start: '2025-06-01',
-      end: '2025-08-31',
-      leaveType: 'Maternity',
-      extendedProps: {
-        employeeName: 'Emily Davis',
-        avatar: teamMembers[3].avatar,
-        department: teamMembers[3].department,
-        userId: 'user4'
-      }
-    },
-    {
-      id: '5',
-      userId: 'user5',
-      title: 'Michael Wilson - Annual Leave',
-      start: '2025-04-28',
-      end: '2025-05-02',
-      leaveType: 'Annual',
-      extendedProps: {
-        employeeName: 'Michael Wilson',
-        avatar: teamMembers[4].avatar,
-        department: teamMembers[4].department,
-        userId: 'user5'
-      }
-    }
-  ];
-  
-  return leaves;
-};
-
 const TeamCalendar: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { leaveApplications, fetchingApplications } = useAppSelector(state => state.leave);
+  const { user } = useAppSelector(state => state.user);
+
   // State for filters
   const [showMyLeaves, setShowMyLeaves] = useState<boolean>(true);
   const [showTeamLeaves, setShowTeamLeaves] = useState<boolean>(true);
   const [showHolidays, setShowHolidays] = useState<boolean>(true);
-  const [department, setDepartment] = useState<string>("all");
   const [leaveTypeFilter, setLeaveTypeFilter] = useState<string>("all");
   
-  // Current user ID (will come from auth in the real app)
-  const currentUserId = 'user1'; 
-  
-  // Get all departments from team members
-  const departments = ['all', ...Array.from(new Set(teamMembers.map(member => member.department)))];
-  
-  // Get all leave types
-  const leaveTypes = ['all', ...Object.keys(leaveTypeColors)];
-  
-  // Generate team leaves
-  const teamLeaves = generateTeamLeaves();
-  
+  // Current user ID and department from auth
+  const currentUserId = user?.id;
+  const currentUserDepartment = user?.department;
+
+  // Fetch all leave applications on component mount
+  useEffect(() => {
+    dispatch(getAllLeaveApplications());
+  }, [dispatch]);
+
+  // Generate a hash code from a string (for deterministic color assignment)
+  const getHashCode = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+  };
+
+  // Filter leave applications to only show approved applications from the same department
+  const teamLeaveApplications = useMemo(() => {
+    return leaveApplications.filter(app => 
+      app.status === 'Approved' && 
+      app.employee?.department === currentUserDepartment
+    );
+  }, [leaveApplications, currentUserDepartment]);
+
+  // Generate dynamic color mapping for all leave types
+  const leaveTypeColors = useMemo(() => {
+    // Get all unique leave types from applications
+    const leaveTypes = Array.from(
+      new Set(teamLeaveApplications.map(app => app.leaveType?.name))
+    ).filter(Boolean) as string[];
+    
+    // Create a map of leave types to colors
+    const colorMap: Record<string, LeaveColorScheme> = {};
+    
+    // Assign a unique color to each leave type based on its name
+    leaveTypes.forEach(leaveType => {
+      if (leaveType) {
+        // Use hash of leave type name to pick a color
+        const hashCode = getHashCode(leaveType);
+        const colorIndex = hashCode % COLOR_PALETTE.length;
+        colorMap[leaveType] = COLOR_PALETTE[colorIndex];
+      }
+    });
+    
+    return colorMap;
+  }, [teamLeaveApplications]);
+
+  // Get all leave types from applications
+  const leaveTypes = useMemo(() => {
+    return ['all', ...Object.keys(leaveTypeColors)];
+  }, [leaveTypeColors]);
+
+  // Transform leave applications to calendar events
+  const teamLeaves = useMemo(() => {
+    return teamLeaveApplications.map(app => ({
+      id: app.id,
+      userId: app.employeeId,
+      title: `${app.employee?.name || 'Employee'} - ${app.leaveType.name} Leave`,
+      start: app.startDate,
+      end: app.endDate,
+      leaveType: app.leaveType.name,
+      extendedProps: {
+        employeeName: app.employee?.name || 'Employee',
+        avatar: app.employee?.avatarUrl || `https://ui-avatars.com/api/?name=${app.employee?.name || 'U'}`,
+        department: app.employee?.department || 'Unknown',
+        userId: app.employeeId
+      }
+    }));
+  }, [teamLeaveApplications]);
+
   // Format holidays for the calendar
   const formattedHolidays: EventInput[] = rwandaHolidays.map(holiday => ({
     ...holiday,
@@ -189,29 +154,27 @@ const TeamCalendar: React.FC = () => {
       type: 'holiday'
     }
   }));
-  
+
   // Filter events based on selected filters
   const getFilteredEvents = (): EventInput[] => {
     let events: EventInput[] = [];
     
-    // Add team leaves if filter is on
+    // Add team leaves and my leaves based on filter
     if (showTeamLeaves || showMyLeaves) {
       const filteredLeaves = teamLeaves.filter(leave => {
-        // Department filter
-        const departmentMatch = department === 'all' || leave.extendedProps.department === department;
-        
         // Leave type filter
         const leaveTypeMatch = leaveTypeFilter === 'all' || leave.leaveType === leaveTypeFilter;
         
         // My leaves filter
         const isMyLeave = leave.userId === currentUserId;
         
-        return departmentMatch && leaveTypeMatch && (showTeamLeaves || (showMyLeaves && isMyLeave));
+        return leaveTypeMatch && (showTeamLeaves || (showMyLeaves && isMyLeave));
       });
       
       // Map leaves to calendar events with proper styling
       const formattedLeaves = filteredLeaves.map(leave => {
-        const color = leaveTypeColors[leave.leaveType];
+        // Use the dynamic color mapping - fall back to a default color if type is not found
+        const color = leaveTypeColors[leave.leaveType] || COLOR_PALETTE[0];
         return {
           ...leave,
           backgroundColor: color.bg,
@@ -231,7 +194,7 @@ const TeamCalendar: React.FC = () => {
     
     return events;
   };
-  
+
   // Custom rendering for event content
   const renderEventContent = (eventInfo: EventContentArg) => {
     if (eventInfo.event.extendedProps?.type === 'holiday') {
@@ -251,6 +214,9 @@ const TeamCalendar: React.FC = () => {
             src={eventInfo.event.extendedProps?.avatar} 
             alt={eventInfo.event.extendedProps?.employeeName || "Employee"}
             className="w-6 h-6 rounded-full mr-2"
+            onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${eventInfo.event.extendedProps?.employeeName || 'User'}`;
+            }}
           />
           <div>
             <div className="text-sm font-semibold">
@@ -316,18 +282,6 @@ const TeamCalendar: React.FC = () => {
           <div className="flex space-x-2 items-center">
             <FaFilter className="text-gray-400" />
             <select
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="border border-gray-300 rounded-md px-2 py-1 text-sm"
-            >
-              {departments.map(dept => (
-                <option key={dept} value={dept}>
-                  {dept === 'all' ? 'All Departments' : dept}
-                </option>
-              ))}
-            </select>
-            
-            <select
               value={leaveTypeFilter}
               onChange={(e) => setLeaveTypeFilter(e.target.value)}
               className="border border-gray-300 rounded-md px-2 py-1 text-sm"
@@ -341,75 +295,81 @@ const TeamCalendar: React.FC = () => {
           </div>
         </div>
         
-        <div className="calendar-wrapper">
-          <FullCalendar
-            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-            initialView="dayGridMonth"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'dayGridMonth,timeGridWeek,listMonth'
-            }}
-            events={getFilteredEvents()}
-            eventContent={renderEventContent}
-            height="auto"
-            eventTimeFormat={{
-              hour: '2-digit',
-              minute: '2-digit',
-              meridiem: 'short'
-            }}
-            firstDay={1} // Start week on Monday
-            eventDisplay="block"
-            displayEventEnd={true}
-            eventDidMount={(info: EventMountArg) => {
-              // Add tooltip
-              if (info.event.extendedProps?.type !== 'holiday') {
-                const tooltip = document.createElement('div');
-                tooltip.className = 'calendar-tooltip';
-                tooltip.innerHTML = `
-                  <div class="p-2 bg-gray-800 text-white rounded shadow-lg text-xs">
-                    <div class="font-bold">${info.event.extendedProps?.employeeName || ''}</div>
-                    <div>${info.event.title.split(' - ')[1] || info.event.title}</div>
-                    <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(info.event.end || info.event.start!).toLocaleDateString()}</div>
-                  </div>
-                `;
-                
-                const element = info.el;
-                element.addEventListener('mouseover', () => {
-                  document.body.appendChild(tooltip);
-                  const rect = element.getBoundingClientRect();
-                  tooltip.style.position = 'absolute';
-                  tooltip.style.top = rect.bottom + window.scrollY + 5 + 'px';
-                  tooltip.style.left = rect.left + window.scrollX + 'px';
-                  tooltip.style.zIndex = '10000';
-                });
-                
-                element.addEventListener('mouseout', () => {
-                  if (document.body.contains(tooltip)) {
-                    document.body.removeChild(tooltip);
-                  }
-                });
-              }
-            }}
-          />
-        </div>
+        {fetchingApplications ? (
+          <div className="flex justify-center items-center py-20">
+            <ClipLoader size={40} color="#3B82F6" />
+          </div>
+        ) : (
+          <div className="calendar-wrapper">
+            <FullCalendar
+              plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+              initialView="dayGridMonth"
+              headerToolbar={{
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,listMonth'
+              }}
+              events={getFilteredEvents()}
+              eventContent={renderEventContent}
+              height="auto"
+              eventTimeFormat={{
+                hour: '2-digit',
+                minute: '2-digit',
+                meridiem: 'short'
+              }}
+              firstDay={1} // Start week on Monday
+              eventDisplay="block"
+              displayEventEnd={true}
+              eventDidMount={(info: EventMountArg) => {
+                // Add tooltip
+                if (info.event.extendedProps?.type !== 'holiday') {
+                  const tooltip = document.createElement('div');
+                  tooltip.className = 'calendar-tooltip';
+                  tooltip.innerHTML = `
+                    <div class="p-2 bg-gray-800 text-white rounded shadow-lg text-xs">
+                      <div class="font-bold">${info.event.extendedProps?.employeeName || ''}</div>
+                      <div>${info.event.title.split(' - ')[1] || info.event.title}</div>
+                      <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(info.event.end || info.event.start!).toLocaleDateString()}</div>
+                    </div>
+                  `;
+                  
+                  const element = info.el;
+                  element.addEventListener('mouseover', () => {
+                    document.body.appendChild(tooltip);
+                    const rect = element.getBoundingClientRect();
+                    tooltip.style.position = 'absolute';
+                    tooltip.style.top = rect.bottom + window.scrollY + 5 + 'px';
+                    tooltip.style.left = rect.left + window.scrollX + 'px';
+                    tooltip.style.zIndex = '10000';
+                  });
+                  
+                  element.addEventListener('mouseout', () => {
+                    if (document.body.contains(tooltip)) {
+                      document.body.removeChild(tooltip);
+                    }
+                  });
+                }
+              }}
+            />
+          </div>
+        )}
       </div>
       
       {/* Legend */}
       <div className="bg-white rounded-lg shadow-sm p-4">
-        <h3 className="font-medium mb-2">Legend</h3>
-        <div className="flex flex-wrap gap-4">
+        <h3 className="font-medium mb-4">Leave Types</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {Object.entries(leaveTypeColors).map(([type, colors]) => (
             <div key={type} className="flex items-center">
-              <span 
-                className="w-4 h-4 rounded-sm mr-2"
+              <div 
+                className="w-5 h-5 rounded-md mr-2 flex-shrink-0 border border-gray-200"
                 style={{ backgroundColor: colors.bg }}
-              ></span>
-              <span className="text-sm">{type} Leave</span>
+              ></div>
+              <span className="text-sm truncate">{type}</span>
             </div>
           ))}
           <div className="flex items-center">
-            <span className="w-4 h-4 rounded-sm mr-2 bg-amber-100 border border-amber-300"></span>
+            <div className="w-5 h-5 rounded-md mr-2 flex-shrink-0 bg-amber-100 border border-amber-300"></div>
             <span className="text-sm">Public Holiday</span>
           </div>
         </div>

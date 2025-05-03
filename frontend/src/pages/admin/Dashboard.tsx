@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUserClock, FaUserCheck, FaUserTimes, FaUsers } from 'react-icons/fa';
 import { format } from 'date-fns';
@@ -11,6 +11,7 @@ import {
 import { UpdateLeaveStatusFormData } from '../../types/LeaveApplication';
 
 const AdminDashboard: React.FC = () => {
+  const { user } = useAppSelector(state => state.user);
   const dispatch = useAppDispatch();
   const { 
     leaveApplications, 
@@ -25,16 +26,33 @@ const AdminDashboard: React.FC = () => {
     dispatch(getAllLeaveApplications());
   }, [dispatch]);
 
+    // Filter applications based on user role
+    const filteredApplications = useMemo(() => {
+      if (!user) return [];
+      
+      // Admin sees all applications
+      if (user.role === 'admin') {
+        return leaveApplications;
+      }
+      
+      // Manager sees only applications from their department
+      return leaveApplications.filter(app => 
+        app.employee?.department === user.department
+      );
+    }, [leaveApplications, user]);
+
   // Calculate dashboard statistics
   const stats = {
-    pendingRequests: leaveApplications.filter(app => app.status === 'Pending').length,
-    approvedRequests: leaveApplications.filter(app => app.status === 'Approved').length,
-    rejectedRequests: leaveApplications.filter(app => app.status === 'Rejected').length,
-    totalEmployees: usersWithLeaveBalances.length
+    pendingRequests: filteredApplications.filter(app => app.status === 'Pending').length,
+    approvedRequests: filteredApplications.filter(app => app.status === 'Approved').length,
+    rejectedRequests: filteredApplications.filter(app => app.status === 'Rejected').length,
+    totalEmployees: user?.role === 'admin' 
+    ? usersWithLeaveBalances.length 
+    : usersWithLeaveBalances.filter(emp => emp.department === user?.department).length
   };
 
   // Get only pending applications for the table
-  const pendingApplications = leaveApplications.filter(app => app.status === 'Pending');
+  const pendingApplications = filteredApplications.filter(app => app.status === 'Pending');
 
   // Handler for approving or rejecting leave
   const handleUpdateLeaveStatus = (id: string, status: 'Approved' | 'Rejected') => {
@@ -56,8 +74,12 @@ const AdminDashboard: React.FC = () => {
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-gray-600">Overview of leave management system</p>
+        <h1 className="text-2xl font-bold mb-2">{user?.role === 'admin' ? 'Admin':'Manager'} Dashboard</h1>
+        <p className="text-gray-600">
+          {user?.role === 'admin' 
+            ? 'Overview of leave management system' 
+            : `Overview of leave management for ${user?.department} department`}
+        </p>
       </div>
 
       {/* Stats cards */}
@@ -118,7 +140,10 @@ const AdminDashboard: React.FC = () => {
             <h2 className="font-semibold text-lg">Pending Leave Applications</h2>
             <p className="text-sm text-gray-500">Requests waiting for approval</p>
           </div>
-          <Link to="/admin/leave-requests" className="text-sm text-blue-600 hover:text-blue-800 hover:underline">
+          <Link 
+            to={user?.role === 'admin' ? "/admin/leave-requests" : "/manager/leave-requests"} 
+            className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+          >
             View All
           </Link>
         </div>

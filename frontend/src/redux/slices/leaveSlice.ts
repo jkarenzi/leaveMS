@@ -79,7 +79,7 @@ const leaveSlice = createSlice({
       })
       .addCase(getEmployeeLeaveApplications.fulfilled, (state, action) => {
         state.fetchingApplications = false;
-        state.leaveApplications = action.payload;
+        state.myLeaveApplications = action.payload;
       })
       .addCase(getEmployeeLeaveApplications.rejected, (state, action) => {
         state.fetchingApplications = false;
@@ -91,7 +91,6 @@ const leaveSlice = createSlice({
       })
       .addCase(createLeaveApplication.fulfilled, (state, action) => {
         state.submitting = false;
-        state.leaveApplications.unshift(action.payload);
         state.myLeaveApplications.unshift(action.payload);
         state.applicationStatus = 'successful';
         successToast('Leave application submitted successfully');
@@ -134,7 +133,6 @@ const leaveSlice = createSlice({
       })
       .addCase(deleteLeaveApplication.fulfilled, (state, action) => {
         state.submitting = false;
-        state.leaveApplications = state.leaveApplications.filter(app => app.id !== action.payload);
         state.myLeaveApplications = state.myLeaveApplications.filter(app => app.id !== action.payload);
         state.applicationStatus = 'successful';
         successToast('Leave application deleted successfully');

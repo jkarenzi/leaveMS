@@ -1,104 +1,115 @@
-import React, { useState } from "react";
-import { FaFilter, FaSearch, FaFileDownload, FaEye, FaTimes } from "react-icons/fa";
-
-// Mock data for leave history
-const mockLeaveHistory = [
-  { 
-    id: "LR-001",
-    type: "Annual", 
-    dateRange: "Mar 1–Mar 5, 2025", 
-    startDate: "2025-03-01",
-    endDate: "2025-03-05",
-    daysCount: 5,
-    reason: "Family vacation",
-    appliedOn: "Feb 20, 2025",
-    status: "Approved",
-    approvedBy: "Jane Manager",
-    comments: "Approved as requested"
-  },
-  { 
-    id: "LR-002",
-    type: "Sick", 
-    dateRange: "Feb 15–Feb 16, 2025",
-    startDate: "2025-02-15",
-    endDate: "2025-02-16", 
-    daysCount: 2,
-    reason: "Flu",
-    appliedOn: "Feb 15, 2025",
-    status: "Rejected",
-    approvedBy: "John Director",
-    comments: "Need medical certificate" 
-  },
-  { 
-    id: "LR-003",
-    type: "Compassionate", 
-    dateRange: "Jan 10–Jan 12, 2025",
-    startDate: "2025-01-10",
-    endDate: "2025-01-12", 
-    daysCount: 3,
-    reason: "Family emergency",
-    appliedOn: "Jan 9, 2025",
-    status: "Pending",
-    approvedBy: "",
-    comments: "" 
-  },
-  { 
-    id: "LR-004",
-    type: "Annual", 
-    dateRange: "Dec 20–Dec 31, 2024",
-    startDate: "2024-12-20",
-    endDate: "2024-12-31", 
-    daysCount: 12,
-    reason: "End of year break",
-    appliedOn: "Nov 15, 2024",
-    status: "Approved",
-    approvedBy: "Jane Manager",
-    comments: "Enjoy your holiday!" 
-  },
-  { 
-    id: "LR-005",
-    type: "Maternity", 
-    dateRange: "Sep 1–Nov 30, 2024",
-    startDate: "2024-09-01",
-    endDate: "2024-11-30", 
-    daysCount: 91,
-    reason: "Maternity leave",
-    appliedOn: "Jul 15, 2024",
-    status: "Approved",
-    approvedBy: "John Director",
-    comments: "Congratulations!" 
-  },
-];
+import React, { useState, useEffect } from "react";
+import { FaFilter, FaSearch, FaFileDownload, FaEye, FaTimes, FaExclamationTriangle } from "react-icons/fa";
+import { format, parseISO } from "date-fns";
+import { ClipLoader } from "react-spinners";
+import { useAppSelector, useAppDispatch } from "../../redux/hooks";
+import { getEmployeeLeaveApplications, deleteLeaveApplication } from "../../redux/actions/leaveApplicationActions";
+import { resetApplicationStatus } from "../../redux/slices/leaveSlice";
+import { LeaveApplication, LeaveStatus } from "../../types/LeaveApplication";
+import { differenceInBusinessDays } from "date-fns";
+import * as XLSX from 'xlsx';
 
 const LeaveHistory: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { user } = useAppSelector(state => state.user);
+  const { myLeaveApplications, fetchingApplications, submitting, applicationStatus } = useAppSelector(state => state.leave);
+  
+  // Local state
   const [searchTerm, setSearchTerm] = useState("");
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [selectedLeave, setSelectedLeave] = useState<typeof mockLeaveHistory[0] | null>(null);
+  const [selectedLeave, setSelectedLeave] = useState<LeaveApplication | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [leaveToDelete, setLeaveToDelete] = useState<string | null>(null);
+  
+  // Fetch leave applications on component mount
+  useEffect(() => {
+    if (user?.id) {
+      dispatch(getEmployeeLeaveApplications(user.id));
+    }
+  }, [dispatch, user?.id]);
+  
+  // Reset application status when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(resetApplicationStatus());
+    };
+  }, [dispatch]);
+  
+  // Close the delete modal and refresh data when operation is successful
+  useEffect(() => {
+    if (applicationStatus === 'successful' && !submitting) {
+      setIsDeleteModalOpen(false);
+      setLeaveToDelete(null);
+    }
+  }, [applicationStatus, submitting]);
+
+  // Format date to readable format
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), "MMM d, yyyy");
+    } catch (error) {
+      return dateString;
+    }
+  };
+  
+  // Format date range
+  const formatDateRange = (startDate: string, endDate: string) => {
+    try {
+      const start = format(parseISO(startDate), "MMM d");
+      const end = format(parseISO(endDate), "MMM d, yyyy");
+      return `${start}–${end}`;
+    } catch (error) {
+      return `${startDate} - ${endDate}`;
+    }
+  };
+  
+  // Calculate business days
+  const calculateBusinessDays = (startDate: string, endDate: string) => {
+    try {
+      return differenceInBusinessDays(parseISO(endDate), parseISO(startDate)) + 1;
+    } catch (error) {
+      return 0;
+    }
+  };
   
   // Filter leave history based on search and filters
-  const filteredLeaveHistory = mockLeaveHistory.filter(leave => {
-    const matchesSearch = leave.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          leave.dateRange.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          leave.id.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredLeaveHistory = myLeaveApplications.filter(leave => {
+    const matchesSearch = 
+      (leave.leaveType?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      `${formatDateRange(leave.startDate, leave.endDate)}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesYear = filterYear === "all" || 
-                       (filterYear === "2025" && leave.startDate.startsWith("2025")) ||
-                       (filterYear === "2024" && leave.startDate.startsWith("2024"));
+                       (filterYear && leave.startDate && leave.startDate.startsWith(filterYear));
                        
-    const matchesType = filterType === "all" || leave.type.toLowerCase() === filterType.toLowerCase();
+    const matchesType = filterType === "all" || 
+                       (leave.leaveType?.name.toLowerCase() === filterType.toLowerCase());
     
-    const matchesStatus = filterStatus === "all" || leave.status.toLowerCase() === filterStatus.toLowerCase();
+    const matchesStatus = filterStatus === "all" || 
+                         (leave.status.toLowerCase() === filterStatus.toLowerCase());
     
     return matchesSearch && matchesYear && matchesType && matchesStatus;
   });
 
-  // Available years, leave types and statuses for filtering
-  const years = ["all", "2025", "2024"];
-  const leaveTypes = ["all", "Annual", "Sick", "Compassionate", "Maternity"];
-  const statuses = ["all", "Approved", "Rejected", "Pending"];
+  // Get unique years from leave applications
+  const years = ["all", ...Array.from(new Set(
+    myLeaveApplications
+      .map(leave => leave.startDate?.substring(0, 4))
+      .filter(Boolean)
+  ))];
   
+  // Get unique leave types from applications
+  const leaveTypes = ["all", ...Array.from(new Set(
+    myLeaveApplications
+      .map(leave => leave.leaveType?.name)
+      .filter(Boolean)
+  ))];
+  
+  // All possible statuses
+  const statuses: Array<"all" | LeaveStatus> = ["all", "Approved", "Rejected", "Pending"];
+  
+  // Color utilities
   const getStatusColor = (status: string) => {
     switch(status) {
       case "Approved": return "text-green-600";
@@ -117,6 +128,39 @@ const LeaveHistory: React.FC = () => {
       default: return "bg-gray-100 text-gray-800";
     }
   };
+  
+  // Handle delete confirmation
+  const handleDeleteClick = (leaveId: string) => {
+    setLeaveToDelete(leaveId);
+    setIsDeleteModalOpen(true);
+  };
+  
+  // Delete the leave application
+  const confirmDelete = () => {
+    if (leaveToDelete) {
+      dispatch(deleteLeaveApplication(leaveToDelete));
+    }
+  };
+  
+  // Export leave history to Excel
+  const handleExport = () => {
+    const data = filteredLeaveHistory.map(leave => ({
+      'ID': leave.id,
+      'Type': leave.leaveType?.name,
+      'Start Date': formatDate(leave.startDate),
+      'End Date': formatDate(leave.endDate),
+      'Days': calculateBusinessDays(leave.startDate, leave.endDate),
+      'Reason': leave.reason || 'N/A',
+      'Status': leave.status,
+      'Applied On': formatDate(leave.createdAt),
+      'Manager Comment': leave.managerComment || 'N/A'
+    }));
+    
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leave History");
+    XLSX.writeFile(workbook, "leave_history.xlsx");
+  };
 
   return (
     <div className="p-6">
@@ -124,7 +168,10 @@ const LeaveHistory: React.FC = () => {
         <h1 className="text-2xl font-bold">Leave History</h1>
         
         <div className="flex items-center space-x-2">
-          <button className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center">
+          <button 
+            className="px-4 py-2 bg-blue-600 text-white rounded-md flex items-center"
+            onClick={handleExport}
+          >
             <FaFileDownload className="mr-2" />
             Export
           </button>
@@ -188,91 +235,99 @@ const LeaveHistory: React.FC = () => {
       
       {/* Leave History Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden my-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ID
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date Range
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Days
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Applied On
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredLeaveHistory.length > 0 ? (
-                filteredLeaveHistory.map((leave, idx) => (
-                  <tr key={idx} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {leave.id}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getLeaveTypeColor(leave.type)}`}>
-                        {leave.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {leave.dateRange}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {leave.daysCount}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {leave.appliedOn}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`text-sm font-semibold ${getStatusColor(leave.status)}`}>
-                        {leave.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      <div className="flex space-x-2">
-                        <button 
-                          onClick={() => setSelectedLeave(leave)}
-                          className="p-1 text-blue-600 hover:text-blue-800"
-                          title="View details"
-                        >
-                          <FaEye />
-                        </button>
-                        
-                        {leave.status === "Pending" && (
+        {fetchingApplications ? (
+          <div className="p-8 flex justify-center">
+            <ClipLoader size={40} color="#3B82F6" />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Date Range
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Days
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Applied On
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredLeaveHistory.length > 0 ? (
+                  filteredLeaveHistory.map((leave) => (
+                    <tr key={leave.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {leave.id.substring(0, 8)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getLeaveTypeColor(leave.leaveType?.name || '')}`}>
+                          {leave.leaveType?.name}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDateRange(leave.startDate, leave.endDate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {calculateBusinessDays(leave.startDate, leave.endDate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {formatDate(leave.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`text-sm font-semibold ${getStatusColor(leave.status)}`}>
+                          {leave.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex space-x-2">
                           <button 
-                            className="p-1 text-red-600 hover:text-red-800"
-                            title="Cancel request"
+                            onClick={() => setSelectedLeave(leave)}
+                            className="p-1 text-blue-600 hover:text-blue-800"
+                            title="View details"
                           >
-                            <FaTimes />
+                            <FaEye />
                           </button>
-                        )}
-                      </div>
+                          
+                          {leave.status === "Pending" && (
+                            <button 
+                              onClick={() => handleDeleteClick(leave.id)}
+                              className="p-1 text-red-600 hover:text-red-800"
+                              title="Cancel request"
+                              disabled={submitting}
+                            >
+                              <FaTimes />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
+                      No leave requests found matching your filters.
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No leave requests found matching your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       
       {/* Leave Details Modal */}
@@ -298,19 +353,19 @@ const LeaveHistory: React.FC = () => {
                 
                 <div>
                   <p className="text-sm text-gray-500">Type</p>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getLeaveTypeColor(selectedLeave.type)}`}>
-                    {selectedLeave.type} Leave
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getLeaveTypeColor(selectedLeave.leaveType?.name || '')}`}>
+                    {selectedLeave.leaveType?.name} Leave
                   </span>
                 </div>
                 
                 <div>
                   <p className="text-sm text-gray-500">Date Range</p>
-                  <p className="font-medium">{selectedLeave.dateRange}</p>
+                  <p className="font-medium">{formatDateRange(selectedLeave.startDate, selectedLeave.endDate)}</p>
                 </div>
                 
                 <div>
                   <p className="text-sm text-gray-500">Days Requested</p>
-                  <p className="font-medium">{selectedLeave.daysCount}</p>
+                  <p className="font-medium">{calculateBusinessDays(selectedLeave.startDate, selectedLeave.endDate)}</p>
                 </div>
                 
                 <div>
@@ -322,7 +377,7 @@ const LeaveHistory: React.FC = () => {
                 
                 <div>
                   <p className="text-sm text-gray-500">Applied On</p>
-                  <p className="font-medium">{selectedLeave.appliedOn}</p>
+                  <p className="font-medium">{formatDate(selectedLeave.createdAt)}</p>
                 </div>
                 
                 <div className="col-span-2">
@@ -330,16 +385,27 @@ const LeaveHistory: React.FC = () => {
                   <p className="font-medium">{selectedLeave.reason || "No reason provided"}</p>
                 </div>
                 
+                {selectedLeave.documentUrl && (
+                  <div className="col-span-2">
+                    <p className="text-sm text-gray-500">Supporting Document</p>
+                    <p className="font-medium">
+                      <a 
+                        href={selectedLeave.documentUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-blue-600 hover:text-blue-800 underline"
+                      >
+                        View Document
+                      </a>
+                    </p>
+                  </div>
+                )}
+                
                 {selectedLeave.status !== "Pending" && (
                   <>
                     <div>
-                      <p className="text-sm text-gray-500">Reviewed By</p>
-                      <p className="font-medium">{selectedLeave.approvedBy}</p>
-                    </div>
-                    
-                    <div>
                       <p className="text-sm text-gray-500">Comments</p>
-                      <p className="font-medium">{selectedLeave.comments || "No comments"}</p>
+                      <p className="font-medium">{selectedLeave.managerComment || "No comments"}</p>
                     </div>
                   </>
                 )}
@@ -347,11 +413,55 @@ const LeaveHistory: React.FC = () => {
               
               {selectedLeave.status === "Pending" && (
                 <div className="mt-6 flex justify-end">
-                  <button className="px-4 py-2 bg-red-600 text-white rounded-md">
+                  <button 
+                    className="px-4 py-2 bg-red-600 text-white rounded-md flex items-center"
+                    onClick={() => {
+                      setSelectedLeave(null);
+                      handleDeleteClick(selectedLeave.id);
+                    }}
+                    disabled={submitting}
+                  >
+                    {submitting && <ClipLoader size={16} color="#FFFFFF" className="mr-2" />}
                     Cancel Request
                   </button>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center mb-4 text-red-600">
+                <FaExclamationTriangle className="text-xl mr-2" />
+                <h3 className="text-lg font-bold">Cancel Leave Request</h3>
+              </div>
+              
+              <p className="mb-6 text-gray-700">
+                Are you sure you want to cancel this leave request? This action cannot be undone.
+              </p>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  disabled={submitting}
+                >
+                  No, Keep It
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-400 flex items-center"
+                  disabled={submitting}
+                >
+                  {submitting && <ClipLoader size={16} color="#FFFFFF" className="mr-2" />}
+                  Yes, Cancel Request
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -4,7 +4,8 @@ import LeaveApplication from '../entities/LeaveApplication';
 import LeaveBalance from '../entities/LeaveBalance';
 import LeaveType from '../entities/LeaveType';
 import { differenceInBusinessDays, parseISO } from 'date-fns';
-import { getUserById } from '../utils/userCache';
+import { getAllUsers, getUserById } from '../utils/userCache';
+import createNotifications, { UserType } from '../utils/createNotifications';
 
 // Keep repositories outside the class
 const leaveApplicationRepository = AppDataSource.getRepository(LeaveApplication);
@@ -68,12 +69,31 @@ export default class LeaveApplicationController {
       await leaveApplicationRepository.save(leaveApplication);
 
       // Get employee from cache instead of making API call
-      const employee = getUserById(employeeId);
+      const employee = getUserById(employeeId) as UserType;
       if (!employee) {
         return res.status(404).json({
           status: 'error',
           message: 'Employee not found in cache'
         });
+      }
+
+      // Send notifications to admins and managers in the same department
+      const allUsers = getAllUsers() as UserType[];
+      const recipientIds = allUsers
+        .filter(user => 
+          // Include admins
+          user.role === 'admin' || 
+          // Include managers from the same department
+          (user.role === 'manager' && user.department === employee.department)
+        )
+        .map(user => user.id);
+      
+      // Create notification message
+      const notificationMessage = `${employee.name} has submitted a new ${leaveType.name} leave request for ${numDays} days (${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}).`;
+      
+      // Send notifications to admins and managers
+      if (recipientIds.length > 0) {
+        createNotifications(recipientIds, notificationMessage);
       }
       
       return res.status(201).json({
@@ -156,10 +176,7 @@ export default class LeaveApplicationController {
       
       return res.status(200).json({
         status: 'success',
-        data: {
-          employee,
-          applications: enrichedApplications
-        }
+        data: enrichedApplications
       });
     } catch (error) {
       return res.status(500).json({
@@ -189,6 +206,9 @@ export default class LeaveApplicationController {
           message: 'Leave application not found'
         });
       }
+
+      // Store the previous status to check if it changed
+      const previousStatus = leaveApplication.status;
       
       leaveApplication.status = status;
       leaveApplication.managerComment = managerComment || leaveApplication.managerComment;
@@ -215,7 +235,14 @@ export default class LeaveApplicationController {
       }
       
       // Get employee data from cache
-      const employee = getUserById(leaveApplication.employeeId);
+      const employee = getUserById(leaveApplication.employeeId) as UserType;
+
+      // Send notification to employee if status has changed
+      if (previousStatus !== status && employee) {
+        let notificationMessage = `Your ${leaveApplication.leaveType.name} leave request for ${new Date(leaveApplication.startDate).toLocaleDateString()} - ${new Date(leaveApplication.endDate).toLocaleDateString()} has been ${status.toLowerCase()}.`;
+        
+        createNotifications([leaveApplication.employeeId], notificationMessage);
+      }
       
       // Include employee data in response
       return res.status(200).json({

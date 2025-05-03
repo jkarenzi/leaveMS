@@ -78,40 +78,16 @@ function App() {
           <Route path='calendar' element={<AdminCalendar/>}/>
         </Route>
 
-        {/* <Route path='signup' element={<Signup/>}/>
-        <Route path='student' element={
-          <ProtectedRoute allowedRoles={['user']}>
-            <StudentMainLayout/>
+        <Route path='manager' element={
+          <ProtectedRoute allowedRoles={['manager']}>
+            <AdminLayout/>
           </ProtectedRoute>
-          }>
-          <Route index element={<Home/>}/>
-          <Route path='settings' element={<Settings/>}/>
-          <Route path='projects' element={<Assignments/>}/>
-          <Route path='projects/:projectId' element={<StudentSubLayout/>}>
-            <Route index element={<StudentDashboard/>}/>
-            <Route path='chat' element={<GroupChat/>}/>
-            <Route path='tasks' element={<Tasks/>}/>
-            <Route path='peerAssessment' element={<PeerAssessment/>}/>
-            <Route path='selfAssessment' element={<SelfAssessment/>}/>
-            <Route path='report' element={<Report/>}/>
-          </Route>
+        }>
+          <Route path='dashboard' element={<AdminDashboard/>}/>
+          <Route path='leave-requests' element={<LeaveRequests/>}/>
+          <Route path='employees' element={<Employees/>}/>
+          <Route path='calendar' element={<TeamCalendar/>}/>
         </Route>
-        <Route path='instructor' element={
-          <ProtectedRoute allowedRoles={['instructor']}>
-            <InstructorMainLayout/>
-          </ProtectedRoute>
-          }>
-          <Route index element={<Home/>}/>
-          <Route path='assignments' element={<Assignments/>}/>
-          <Route path='classes' element={<Classes/>}/>
-          <Route path='settings' element={<InstructorSettings/>}/>
-          <Route path='assignments/:assignmentId' element={<InstructorSubLayout/>}>
-            <Route index element={<Dashboard/>}/>
-            <Route path='groups' element={<Groups/>}/>
-            <Route path='assessments' element={<Assessments/>}/>
-            <Route path='reports' element={<Reports/>}/>
-          </Route>
-        </Route> */}
       </Route>
     )
   );

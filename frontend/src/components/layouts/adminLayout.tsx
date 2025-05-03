@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../sideMenus/adminMenu";
 import Header from "../Header";
 
+
 export default function AdminLayout() {
   return (
     <div className="flex h-screen bg-gray-50">

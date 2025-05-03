@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaSearch, FaEdit, FaPlus, FaUserEdit, FaEllipsisV, FaFileDownload, FaTimes } from 'react-icons/fa';
+import { FaSearch, FaPlus, FaEllipsisV, FaFileDownload, FaTimes } from 'react-icons/fa';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { format } from 'date-fns';
@@ -12,19 +12,20 @@ import {
 } from '../../redux/actions/leaveBalanceActions';
 import { getAllLeaveTypes } from '../../redux/actions/leaveTypeActions';
 import { LeaveBalance, UpdateLeaveBalanceFormData, UserWithLeaveBalances } from '../../types/LeaveBalance';
-import { LeaveType } from '../../types/LeaveType';
+import * as XLSX from 'xlsx';
+
 
 const Employees: React.FC = () => {
   // Redux
   const dispatch = useAppDispatch();
   const { 
-    usersWithLeaveBalances, 
-    leaveBalances, 
+    usersWithLeaveBalances,  
     fetchingBalances, 
     submitting,
     leaveBalanceStatus 
   } = useAppSelector(state => state.leave);
   const { leaveTypes } = useAppSelector(state => state.leave);
+  const { user } = useAppSelector(state => state.user);
 
   // States
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,6 +35,36 @@ const Employees: React.FC = () => {
   const [isAdjustBalanceModalOpen, setIsAdjustBalanceModalOpen] = useState(false);
   const [selectedBalance, setSelectedBalance] = useState<LeaveBalance | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  // Export employee data to Excel
+  const handleExport = () => {
+    const data = filteredEmployees.map(employee => ({
+      'Name': employee.name,
+      'Email': employee.email,
+      'Department': employee.department,
+      'Role': employee.role || 'Staff',
+      ...employee.leaveBalances?.reduce((acc, balance) => ({
+        ...acc,
+        [`${balance.leaveType.name} Balance`]: balance.balance.toFixed(1) + ' days',
+        [`${balance.leaveType.name} Carried Over`]: balance.carriedOver.toFixed(1) + ' days'
+      }), {})
+    }));
+  
+    const worksheet = XLSX.utils.json_to_sheet(data);
+      // Set column widths for better readability
+    const wscols = [
+      { wch: 25 }, // Name
+      { wch: 35 }, // Email 
+      { wch: 20 }, // Department
+      { wch: 15 }, // Role
+      // Dynamic columns for leave balances
+      ...Array(leaveTypes.length * 2).fill({ wch: 15 })
+    ];
+    worksheet['!cols'] = wscols;
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Employees");
+    XLSX.writeFile(workbook, "employees_data.xlsx");
+  };
   
   // Generate unique departments list from users data
   const departments = usersWithLeaveBalances 
@@ -55,14 +86,25 @@ const Employees: React.FC = () => {
   }, [leaveBalanceStatus, submitting]);
 
   // Filter employees based on search and department
+  // Filter employees based on search, department, and user role
   const filteredEmployees = usersWithLeaveBalances.filter(employee => {
+    // Base filtering for search
     const fullName = `${employee.name}`.toLowerCase();
     const matchesSearch = 
       searchQuery === '' || 
       fullName.includes(searchQuery.toLowerCase()) || 
       employee.email.toLowerCase().includes(searchQuery.toLowerCase());
     
-    const matchesDepartment = departmentFilter === 'ALL' || employee.department === departmentFilter;
+    // Department filtering is different based on role
+    let matchesDepartment = true;
+    
+    if (user?.role === 'admin') {
+      // Admins can filter by any department
+      matchesDepartment = departmentFilter === 'ALL' || employee.department === departmentFilter;
+    } else if (user?.role === 'manager') {
+      // Managers can only see employees in their department
+      matchesDepartment = employee.department === user?.department;
+    }
     
     return matchesSearch && matchesDepartment;
   });
@@ -181,23 +223,26 @@ const Employees: React.FC = () => {
             </div>
           </div>
           
-          <div>
-            <select
-              className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept === 'ALL' ? 'All Departments' : dept}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Only show department filter for admins */}
+          {user?.role === 'admin' && (
+            <div>
+              <select
+                className="block w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+              >
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept === 'ALL' ? 'All Departments' : dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           <div>
             <button 
-              onClick={() => console.log('Exporting employee data')} 
+              onClick={handleExport} 
               className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
             >
               <FaFileDownload className="mr-2" />

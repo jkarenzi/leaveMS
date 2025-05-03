@@ -13,9 +13,9 @@ router.use(authenticateToken)
 
 router.route('/requests')
     .post(validateCreateLeaveApplication, LeaveApplicationController.createLeaveApplication)
-    .get(checkRole(['admin', 'manager']), LeaveApplicationController.getAllLeaveApplications)
+    .get(LeaveApplicationController.getAllLeaveApplications)
 
-router.get('/requests/employee/:id', checkRole(['admin', 'manager']), LeaveApplicationController.getEmployeeLeaveApplications)   
+router.get('/requests/employee/:id', LeaveApplicationController.getEmployeeLeaveApplications)   
 
 router.route('/requests/:id')
     .patch(LeaveApplicationController.updateLeaveStatus)

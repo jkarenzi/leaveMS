@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { FaSearch, FaFilter, FaEye, FaCheckCircle, FaTimesCircle, FaFileDownload, FaEllipsisV, FaTimes } from 'react-icons/fa';
 import { format } from 'date-fns';
 import { ClipLoader } from 'react-spinners';
@@ -10,6 +10,8 @@ import {
   updateLeaveStatus 
 } from '../../redux/actions/leaveApplicationActions';
 import { LeaveApplication, LeaveStatus, UpdateLeaveStatusFormData } from '../../types/LeaveApplication';
+import * as XLSX from 'xlsx';
+
 
 const LeaveRequests: React.FC = () => {
   // Redux
@@ -20,6 +22,7 @@ const LeaveRequests: React.FC = () => {
     submitting,
     applicationStatus 
   } = useAppSelector(state => state.leave);
+  const { user } = useAppSelector(state => state.user);
 
   // States for filters
   const [statusFilter, setStatusFilter] = useState<LeaveStatus | 'ALL'>('ALL');
@@ -39,6 +42,19 @@ const LeaveRequests: React.FC = () => {
     dispatch(getAllLeaveApplications());
   }, [dispatch]);
 
+  // Filter leave applications based on user role
+  const roleFilteredApplications = useMemo(() => {
+  if (!user) return leaveApplications;
+  
+  // Admin sees all applications
+  if (user.role === 'admin') return leaveApplications;
+  
+  // Manager sees only applications from their department
+  return leaveApplications.filter(app => 
+    app.employee?.department === user.department
+  );
+}, [leaveApplications, user]);
+
   // Reset states when operation completes
   useEffect(() => {
     if (applicationStatus === 'successful' && !submitting) {
@@ -54,12 +70,13 @@ const LeaveRequests: React.FC = () => {
   ).filter(Boolean)];
 
   // Filter leave requests based on filters
-  const filteredRequests = leaveApplications.filter(request => {
+  // Filter leave requests based on filters
+  const filteredRequests = roleFilteredApplications.filter(request => {
     // Status filter
     if (statusFilter !== 'ALL' && request.status !== statusFilter) return false;
     
-    // Department filter
-    if (departmentFilter !== 'ALL' && request.employee?.department !== departmentFilter) return false;
+    // Department filter (only relevant for admins)
+    if (user?.role === 'admin' && departmentFilter !== 'ALL' && request.employee?.department !== departmentFilter) return false;
     
     // Search query (search in employee name, ID, or reason)
     if (searchQuery) {
@@ -79,6 +96,27 @@ const LeaveRequests: React.FC = () => {
     return true;
   });
 
+  // Export data to Excel
+  const handleExport = () => {
+    const data = filteredRequests.map(request => ({
+      'Employee': request.employee?.name || 'Unknown',
+      'Employee ID': request.employeeId,
+      'Department': request.employee?.department || 'Unknown',
+      'Leave Type': request.leaveType.name,
+      'Start Date': formatDate(request.startDate),
+      'End Date': formatDate(request.endDate),
+      'Days': getBusinessDays(request.startDate, request.endDate),
+      'Status': request.status,
+      'Applied On': formatDate(request.createdAt),
+      'Reason': request.reason || 'N/A',
+      'Manager Comment': request.managerComment || 'N/A'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leave Requests");
+    XLSX.writeFile(workbook, "leave_requests.xlsx");
+  };
   // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -159,11 +197,6 @@ const LeaveRequests: React.FC = () => {
     }
   });
 
-  // Export data function (placeholder)
-  const handleExport = () => {
-    console.log('Exporting leave requests data');
-  };
-
   // Helper to format date strings
   const formatDate = (dateString: string) => {
     return format(new Date(dateString), 'MMM d, yyyy');
@@ -226,20 +259,22 @@ const LeaveRequests: React.FC = () => {
             </select>
           </div>
           
-          {/* Department filter */}
-          <div className="w-full md:w-48">
-            <select
-              className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-            >
-              {departments.map((dept) => (
-                <option key={dept} value={dept}>
-                  {dept === 'ALL' ? 'All Departments' : dept}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Department filter - only for admins */}
+          {user?.role === 'admin' && (
+            <div className="w-full md:w-48">
+              <select
+                className="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                value={departmentFilter}
+                onChange={(e) => setDepartmentFilter(e.target.value)}
+              >
+                {departments.map((dept) => (
+                  <option key={dept} value={dept}>
+                    {dept === 'ALL' ? 'All Departments' : dept}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           
           {/* Date filter */}
           <div className="flex space-x-2">

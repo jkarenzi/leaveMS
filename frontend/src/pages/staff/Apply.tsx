@@ -4,22 +4,63 @@ import * as Yup from "yup";
 import { FaPaperclip, FaInfoCircle } from "react-icons/fa";
 import { CircularProgressbar } from 'react-circular-progressbar';
 import 'react-circular-progressbar/dist/styles.css';
+import { useNavigate } from "react-router-dom";
+import { ClipLoader } from 'react-spinners';
 import { useUploadImage } from "../../services/upload";
-
-// Mock data for leave types
-const leaveTypes = [
-  { id: "annual", name: "Annual", balance: 16.5, requiresReason: false, requiresDocument: false },
-  { id: "sick", name: "Sick", balance: 10, requiresReason: true, requiresDocument: true },
-  { id: "compassionate", name: "Compassionate", balance: 3, requiresReason: true, requiresDocument: false },
-  { id: "maternity", name: "Maternity", balance: 90, requiresReason: false, requiresDocument: true },
-];
+import { useAppSelector, useAppDispatch } from "../../redux/hooks";
+import { getAllLeaveTypes } from "../../redux/actions/leaveTypeActions";
+import { getMyLeaveBalances } from "../../redux/actions/leaveBalanceActions";
+import { createLeaveApplication } from "../../redux/actions/leaveApplicationActions";
+import { resetApplicationStatus } from "../../redux/slices/leaveSlice";
+import { LeaveApplicationFormData } from "../../types/LeaveApplication";
 
 const ApplyLeave: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  
+  // Redux state
+  const { leaveTypes, fetchingTypes } = useAppSelector(state => state.leave);
+  const { myLeaveBalances, fetchingBalances } = useAppSelector(state => state.leave);
+  const { submitting, applicationStatus } = useAppSelector(state => state.leave);
+  const { user } = useAppSelector(state => state.user);
+
+  // Local state
   const [daysRequested, setDaysRequested] = useState(0);
-  const [selectedLeaveType, setSelectedLeaveType] = useState<typeof leaveTypes[0] | null>(null);
+  const [selectedLeaveType, setSelectedLeaveType] = useState<any | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [imageProgress, setImageProgress] = useState<number | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
+
+  // Fetch leave types and balances on component mount
+  useEffect(() => {
+    dispatch(getAllLeaveTypes());
+    dispatch(getMyLeaveBalances());
+  }, [dispatch]);
+
+  // Reset application status when component unmounts
+  useEffect(() => {
+    return () => {
+      dispatch(resetApplicationStatus());
+    };
+  }, [dispatch]);
+
+  // Redirect on successful submission and reset status
+  useEffect(() => {
+    if (applicationStatus === 'successful') {
+      navigate('/staff/leave-history');
+      dispatch(resetApplicationStatus());
+    }
+  }, [applicationStatus, navigate, dispatch]);
+
+  // Create combined data for form dropdown by merging leave types with balances
+  const leaveTypesWithBalances = leaveTypes.map(type => {
+    const balance = myLeaveBalances.find(b => b.leaveType.id === type.id);
+    return {
+      id: type.id,
+      name: type.name,
+      balance: balance ? balance.balance : 0
+    };
+  });
 
   // Validation schema to match the backend schema
   const validationSchema = Yup.object({
@@ -34,18 +75,18 @@ const ApplyLeave: React.FC = () => {
 
   const formik = useFormik({
     initialValues: {
-      employeeId: "", // This will be set from authenticated user info in Redux
       leaveTypeId: "",
       startDate: "",
       endDate: "",
       reason: "",
-      documentUrl: null,
+      documentUrl: "",
     },
     validationSchema,
+    enableReinitialize: true,
     onSubmit: async (values) => {
-      console.log("Form submitted:", values);
-      // Will be implemented in Stage 2 with Redux
-      alert("Leave application submitted successfully!");
+      if (!user) return;
+      
+      dispatch(createLeaveApplication(values));
     },
   });
 
@@ -72,25 +113,32 @@ const ApplyLeave: React.FC = () => {
     return count;
   };
 
-    // Update days calculation when dates change
-    useEffect(() => {
-        calculateBusinessDays();
-    }, [formik.values.startDate, formik.values.endDate]);
+  // Update days calculation when dates change
+  useEffect(() => {
+    calculateBusinessDays();
+  }, [formik.values.startDate, formik.values.endDate]);
 
-    // Update selected leave type when form value changes
-    useEffect(() => {
-        const selected = leaveTypes.find(lt => lt.id === formik.values.leaveTypeId);
-        setSelectedLeaveType(selected || null);
-    }, [formik.values.leaveTypeId]);
+  // Update selected leave type when form value changes
+  useEffect(() => {
+    const selected = leaveTypesWithBalances.find(lt => lt.id === formik.values.leaveTypeId);
+    setSelectedLeaveType(selected || null);
+  }, [formik.values.leaveTypeId, leaveTypesWithBalances]);
 
-    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.currentTarget.files?.[0];
-        if (file) {
-            setSelectedFileName(file.name);
-            const {url} = await useUploadImage(file, setImageProgress, setImageLoading);
-            formik.setFieldValue("documentUrl", url);
-        }
-    };
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    if (file) {
+      setSelectedFileName(file.name);
+      try {
+        setImageLoading(true);
+        const {url} = await useUploadImage(file, setImageProgress, setImageLoading);
+        formik.setFieldValue("documentUrl", url);
+      } catch (error) {
+        console.error("File upload failed:", error);
+        // Reset loading state
+        setImageLoading(false);
+      }
+    }
+  };
 
   // Check if there's enough balance
   const isBalanceExceeded = () => {
@@ -100,6 +148,14 @@ const ApplyLeave: React.FC = () => {
 
   // Get today's date formatted for min attribute
   const today = new Date().toISOString().split('T')[0];
+
+  if (fetchingTypes || fetchingBalances) {
+    return (
+      <div className="p-6 flex justify-center items-center min-h-[60vh]">
+        <ClipLoader size={40} color="#3B82F6" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -124,9 +180,10 @@ const ApplyLeave: React.FC = () => {
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 value={formik.values.leaveTypeId}
+                disabled={submitting}
               >
                 <option value="">Select Leave Type</option>
-                {leaveTypes.map((type) => (
+                {leaveTypesWithBalances.map((type) => (
                   <option key={type.id} value={type.id}>
                     {type.name} Leave (Balance: {type.balance} days)
                   </option>
@@ -155,6 +212,7 @@ const ApplyLeave: React.FC = () => {
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 min={today}
+                disabled={submitting}
               />
               {formik.touched.startDate && formik.errors.startDate ? (
                 <p className="mt-1 text-xs text-red-500">{String(formik.errors.startDate)}</p>
@@ -179,6 +237,7 @@ const ApplyLeave: React.FC = () => {
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
                 min={formik.values.startDate || today}
+                disabled={submitting}
               />
               {formik.touched.endDate && formik.errors.endDate ? (
                 <p className="mt-1 text-xs text-red-500">{String(formik.errors.endDate)}</p>
@@ -188,7 +247,7 @@ const ApplyLeave: React.FC = () => {
             {/* Reason */}
             <div>
               <label htmlFor="reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Reason {selectedLeaveType?.requiresReason ? "*" : "(Optional)"}
+                Reason (Optional)
               </label>
               <textarea
                 id="reason"
@@ -203,6 +262,7 @@ const ApplyLeave: React.FC = () => {
                 onBlur={formik.handleBlur}
                 value={formik.values.reason || ""}
                 placeholder="Please provide a reason for your leave"
+                disabled={submitting}
               />
               {formik.touched.reason && formik.errors.reason ? (
                 <p className="mt-1 text-xs text-red-500">{formik.errors.reason}</p>
@@ -212,7 +272,7 @@ const ApplyLeave: React.FC = () => {
             {/* Document Upload */}
             <div>
               <label htmlFor="documentUrl" className="block text-sm font-medium text-gray-700 mb-1">
-                Supporting Document {selectedLeaveType?.requiresDocument ? "*" : "(Optional)"}
+                Supporting Document (Optional)
               </label>
               <div className="mt-1">
                 {imageLoading ? (
@@ -233,7 +293,7 @@ const ApplyLeave: React.FC = () => {
                       formik.touched.documentUrl && formik.errors.documentUrl
                         ? "border-red-500"
                         : "border-gray-300"
-                    } rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none`}
+                    } rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <FaPaperclip className="mr-2" />
                     <span>{selectedFileName || "Upload a file"}</span>
@@ -244,7 +304,7 @@ const ApplyLeave: React.FC = () => {
                       className="sr-only"
                       onChange={handleFileChange}
                       accept=".pdf,.jpg,.jpeg,.png"
-                      disabled={imageLoading}
+                      disabled={imageLoading || submitting}
                     />
                   </label>
                 )}
@@ -288,16 +348,18 @@ const ApplyLeave: React.FC = () => {
           <div className="mt-6 flex justify-end space-x-3">
             <button
               type="button"
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none disabled:opacity-50"
               onClick={() => formik.resetForm()}
+              disabled={submitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:bg-blue-300"
-              disabled={formik.isSubmitting || !formik.isValid || imageLoading}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:bg-blue-300 flex items-center"
+              disabled={submitting || !formik.isValid || imageLoading}
             >
+              {submitting && <ClipLoader size={16} color="#FFFFFF" className="mr-2" />}
               Submit Application
             </button>
           </div>
