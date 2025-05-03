@@ -30,7 +30,7 @@ router.route('/types/:id')
     .delete(checkRole(['admin']), LeaveTypeController.deleteLeaveType) 
     
 
-router.post('/balances', validateInitializeLeaveBalances, checkRole(['admin']), LeaveBalanceController.initializeEmployeeLeaveBalances)   
+router.post('/balances', validateInitializeLeaveBalances, LeaveBalanceController.initializeEmployeeLeaveBalances)   
 router.get('/balances', checkRole(['admin', 'manager']), LeaveBalanceController.getAllLeaveBalances)
 router.get('/balances/own', LeaveBalanceController.getMyLeaveBalances)  
 router.get('/balances/employee/:id', checkRole(['admin', 'manager']), LeaveBalanceController.getEmployeeLeaveBalances) 

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import LeaveBalance from '../entities/LeaveBalance';
 import LeaveType from '../entities/LeaveType';
 import { AppDataSource } from '../dbConfig';
-import { getUserById } from '../utils/userCache';
+import { getUserById, refreshUserCache } from '../utils/userCache';
 import { UserType } from '../utils/createNotifications';
 
 const leaveBalanceRepository = AppDataSource.getRepository(LeaveBalance);
@@ -186,6 +186,7 @@ export default class LeaveBalanceController {
                 });
             }
             
+            await refreshUserCache()
             // Get employee data from cache
             const employee = getUserById(employeeId);
             if (!employee) {
@@ -211,7 +212,7 @@ export default class LeaveBalanceController {
                     const leaveBalance = leaveBalanceRepository.create({
                         employeeId,
                         leaveType,
-                        balance: leaveType.defaultAnnualAllocation,
+                        balance: 0,
                         carriedOver: 0
                     });
                     

@@ -12,6 +12,7 @@ export JWT_SECRET="DUIFNBVDFOV548N04V8VN043V5I845N80N485048N5V90485NV04N5"
 
 # Set Frontend URL
 export FRONTEND_URL="http://localhost:5173"
+export LEAVE_URL="http://localhost:3000/api"
 
 # Set Google OAuth2 Variables
 export GOOGLE_CLIENT_ID="1047104665535-v37vqapk98318nlf31clfokb1jeikld9.apps.googleusercontent.com"

@@ -51,4 +51,4 @@ export const getAllUsers = () => {
 refreshUserCache();
 
 // Schedule refresh every 15 minutes
-cron.schedule('*/15 * * * *', refreshUserCache);
+cron.schedule('*/3 * * * *', refreshUserCache);

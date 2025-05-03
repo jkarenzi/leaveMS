@@ -4,8 +4,11 @@ import com.example.authservice.model.User;
 import com.example.authservice.repository.UserRepository;
 import com.example.authservice.service.GoogleTokenVerifierService;
 import com.example.authservice.service.JwtService;
+import com.example.authservice.service.UserService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +30,9 @@ public class AuthController {
     private final JwtService jwtService;
     
     private static final String DEFAULT_ROLE = "staff";
+
+    @Autowired
+    private UserService userService;
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> authenticate(@RequestBody Map<String, String> body) {
@@ -66,8 +72,12 @@ public class AuthController {
                         .role(DEFAULT_ROLE)
                         .department(department)
                         .build();
+
+                // Generate JWT token
+                String tokenOne = jwtService.generateToken(user);        
                         
-                userRepository.save(user);
+                // Use the service instead of directly saving
+                User registeredUser = userService.registerUser(user, tokenOne);
             }
 
             // Generate JWT token
