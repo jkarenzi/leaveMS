@@ -50,6 +50,7 @@ const LeaveHistory: React.FC = () => {
     try {
       return format(parseISO(dateString), "MMM d, yyyy");
     } catch (error) {
+      console.error("Error formatting date:", error);
       return dateString;
     }
   };
@@ -61,6 +62,7 @@ const LeaveHistory: React.FC = () => {
       const end = format(parseISO(endDate), "MMM d, yyyy");
       return `${start}–${end}`;
     } catch (error) {
+      console.error("Error formatting date range:", error);
       return `${startDate} - ${endDate}`;
     }
   };
@@ -70,6 +72,7 @@ const LeaveHistory: React.FC = () => {
     try {
       return differenceInBusinessDays(parseISO(endDate), parseISO(startDate)) + 1;
     } catch (error) {
+      console.error("Error calculating business days:", error);
       return 0;
     }
   };

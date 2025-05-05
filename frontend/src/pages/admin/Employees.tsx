@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FaSearch, FaPlus, FaEllipsisV, FaFileDownload, FaTimes } from 'react-icons/fa';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { format } from 'date-fns';
+// import { format } from 'date-fns';
 import { ClipLoader } from 'react-spinners';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { 
@@ -185,9 +185,9 @@ const Employees: React.FC = () => {
   };
 
   // Helper function to format date
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), 'MMM d, yyyy');
-  };
+  // const formatDate = (dateString: string) => {
+  //   return format(new Date(dateString), 'MMM d, yyyy');
+  // };
 
   return (
     <div className="p-6">
@@ -298,7 +298,7 @@ const Employees: React.FC = () => {
                     <td className="px-6 py-4">
                       {employee.leaveBalances && employee.leaveBalances.length > 0 ? (
                         <div className="text-sm text-gray-900">
-                          {employee.leaveBalances.slice(0, 2).map((balance, index) => (
+                          {employee.leaveBalances.slice(0, 2).map((balance) => (
                             <div key={balance.id} className="mb-1">
                               <span className="font-medium">{balance.leaveType.name}:</span> {balance.balance.toFixed(1)} days
                               {balance.carriedOver > 0 && (

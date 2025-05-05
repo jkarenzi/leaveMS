@@ -9,13 +9,13 @@ interface IAuth {
     user: User | null
 }
 
-interface IParams {
-    name?:string,
-    startYear?:string,
-    program?:string,
-    intake?:string,
-    role?:string
-}
+// interface IParams {
+//     name?:string,
+//     startYear?:string,
+//     program?:string,
+//     intake?:string,
+//     role?:string
+// }
 
 
 export const login = createAsyncThunk<ApiResponse, {idToken:string}>('auth/login', async(formData, thunkAPI) => {

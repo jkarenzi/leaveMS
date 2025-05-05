@@ -9,7 +9,7 @@ import { EventContentArg, EventInput, EventMountArg } from '@fullcalendar/core';
 import { ClipLoader } from 'react-spinners';
 import { useAppSelector, useAppDispatch } from '../../redux/hooks';
 import { getAllLeaveApplications } from '../../redux/actions/leaveApplicationActions';
-import { LeaveApplication } from '../../types/LeaveApplication';
+
 
 // Type definitions
 interface LeaveColorScheme {
@@ -17,21 +17,21 @@ interface LeaveColorScheme {
   text: string;
 }
 
-interface LeaveEvent extends EventInput {
-  id: string;
-  userId: string;
-  title: string;
-  start: string;
-  end: string;
-  leaveType: string;
-  extendedProps: {
-    employeeName: string;
-    avatar: string;
-    department: string;
-    userId?: string;
-    type?: string;
-  };
-}
+// interface LeaveEvent extends EventInput {
+//   id: string;
+//   userId: string;
+//   title: string;
+//   start: string;
+//   end: string;
+//   leaveType: string;
+//   extendedProps: {
+//     employeeName: string;
+//     avatar: string;
+//     department: string;
+//     userId?: string;
+//     type?: string;
+//   };
+// }
 
 interface HolidayEvent extends EventInput {
   title: string;

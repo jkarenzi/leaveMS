@@ -60,6 +60,7 @@ const StaffDashboard: React.FC = () => {
       const end = format(parseISO(endDate), "MMM d, yyyy");
       return `${start}–${end}`;
     } catch (error) {
+      console.error("Error formatting date range:", error);
       return `${startDate} - ${endDate}`;
     }
   };

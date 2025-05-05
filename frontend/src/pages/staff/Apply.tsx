@@ -12,7 +12,7 @@ import { getAllLeaveTypes } from "../../redux/actions/leaveTypeActions";
 import { getMyLeaveBalances } from "../../redux/actions/leaveBalanceActions";
 import { createLeaveApplication } from "../../redux/actions/leaveApplicationActions";
 import { resetApplicationStatus } from "../../redux/slices/leaveSlice";
-import { LeaveApplicationFormData } from "../../types/LeaveApplication";
+
 
 const ApplyLeave: React.FC = () => {
   const dispatch = useAppDispatch();
