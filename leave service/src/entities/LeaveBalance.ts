@@ -18,4 +18,7 @@ export default class LeaveBalance {
 
     @Column('decimal', { precision: 5, scale: 2, default: 0 })
     carriedOver: number;
+
+    @Column({type: 'decimal', precision: 10, scale: 2, default: 0})
+    excessDays: number;
 }

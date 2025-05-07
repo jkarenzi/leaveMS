@@ -8,7 +8,8 @@ export interface LeaveBalance {
     leaveType: LeaveType;
     balance: number;
     carriedOver: number;
-    employee: User
+    employee: User,
+    excessDays: number;
 }
 
 export interface LeaveBalanceFormData {

@@ -45,6 +45,11 @@ interface HolidayEvent extends EventInput {
   };
 }
 
+interface LeaveColorScheme {
+  bg: string;
+  text: string;
+}
+
 // More distinct color palette with better contrast between colors
 const COLOR_PALETTE: LeaveColorScheme[] = [
   { bg: '#E53935', text: 'white' },  // Bright Red
@@ -156,20 +161,26 @@ const AdminCalendar: React.FC = () => {
   const teamLeaves = useMemo(() => {
     return leaveApplications
       .filter(app => app.status === 'Approved') // Only show approved leaves
-      .map(app => ({
-        id: app.id,
-        userId: app.employeeId,
-        title: `${app.employee?.name || 'Employee'} - ${app.leaveType.name} Leave`,
-        start: app.startDate,
-        end: app.endDate,
-        leaveType: app.leaveType.name,
-        extendedProps: {
-          employeeName: app.employee?.name || 'Employee',
-          avatar: app.employee?.avatarUrl || 'https://ui-avatars.com/api/?name=' + app.employee?.name,
-          department: app.employee?.department || 'Unknown',
-          userId: app.employeeId
-        }
-      }));
+      .map(app => {
+        // Add one day to the end date to make it inclusive
+        const endDate = new Date(app.endDate);
+        endDate.setDate(endDate.getDate() + 1);
+
+        return {
+          id: app.id,
+          userId: app.employeeId,
+          title: `${app.employee?.name || 'Employee'} - ${app.leaveType.name} Leave`,
+          start: app.startDate,
+          end: endDate.toISOString().split('T')[0],
+          leaveType: app.leaveType.name,
+          extendedProps: {
+            employeeName: app.employee?.name || 'Employee',
+            avatar: app.employee?.avatarUrl || 'https://ui-avatars.com/api/?name=' + app.employee?.name,
+            department: app.employee?.department || 'Unknown',
+            userId: app.employeeId
+          }
+        };
+      })
   }, [leaveApplications]);
   
   // Format holidays for the calendar
@@ -372,7 +383,7 @@ const AdminCalendar: React.FC = () => {
                     <div class="p-2 bg-gray-800 text-white rounded shadow-lg text-xs">
                       <div class="font-bold">${info.event.extendedProps?.employeeName || ''}</div>
                       <div>${info.event.title.split(' - ')[1] || info.event.title}</div>
-                      <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(info.event.end || info.event.start!).toLocaleDateString()}</div>
+                      <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(new Date(info.event.end!).getTime() - 86400000).toLocaleDateString()}</div>
                     </div>
                   `;
                   

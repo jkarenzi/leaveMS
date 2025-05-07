@@ -180,4 +180,67 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
+        /**
+     * Update a user's department or role
+     */
+    @PutMapping("/users/{id}")
+    public ResponseEntity<Map<String, Object>> updateUser(@PathVariable UUID id, @RequestBody Map<String, String> updateData) {
+        try {
+            Optional<User> userOptional = userRepository.findById(id);
+            
+            if (userOptional.isEmpty()) {
+                Map<String, Object> errorResponse = new HashMap<>();
+                errorResponse.put("success", false);
+                errorResponse.put("message", "User not found");
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
+            }
+            
+            User user = userOptional.get();
+            
+            // Update department if provided
+            if (updateData.containsKey("department")) {
+                user.setDepartment(updateData.get("department"));
+            }
+            
+            // Update role if provided
+            if (updateData.containsKey("role")) {
+                String newRole = updateData.get("role");
+                // Validate role is one of the allowed values
+                if (newRole != null && (newRole.equals("staff") || newRole.equals("manager") || newRole.equals("admin"))) {
+                    user.setRole(newRole);
+                } else {
+                    Map<String, Object> errorResponse = new HashMap<>();
+                    errorResponse.put("success", false);
+                    errorResponse.put("message", "Invalid role. Must be 'staff', 'manager', or 'admin'");
+                    return ResponseEntity.badRequest().body(errorResponse);
+                }
+            }
+            
+            // Save the updated user
+            userRepository.save(user);
+            
+            // Build response with updated user data
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "User updated successfully");
+            
+            Map<String, Object> userMap = new HashMap<>();
+            userMap.put("id", user.getId());
+            userMap.put("email", user.getEmail());
+            userMap.put("name", user.getName());
+            userMap.put("role", user.getRole());
+            userMap.put("department", user.getDepartment());
+            userMap.put("avatarUrl", user.getAvatarUrl());
+            
+            response.put("user", userMap);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Internal server error: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
+    }
 }

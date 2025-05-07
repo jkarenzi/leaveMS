@@ -30,18 +30,26 @@ interface HolidayEvent extends EventInput {
 
 // Tailwind color palette
 const COLOR_PALETTE: LeaveColorScheme[] = [
-  { bg: '#4CAF50', text: 'white' },  // Green
-  { bg: '#F44336', text: 'white' },  // Red
-  { bg: '#2196F3', text: 'white' },  // Blue
-  { bg: '#9C27B0', text: 'white' },  // Purple
-  { bg: '#FF9800', text: 'white' },  // Orange
-  { bg: '#00BCD4', text: 'white' },  // Cyan
-  { bg: '#673AB7', text: 'white' },  // Deep Purple
-  { bg: '#E91E63', text: 'white' },  // Pink
-  { bg: '#795548', text: 'white' },  // Brown
-  { bg: '#607D8B', text: 'white' },  // Blue Grey
-  { bg: '#FFC107', text: 'black' },  // Amber
-  { bg: '#009688', text: 'white' }   // Teal
+  { bg: '#E53935', text: 'white' },  // Bright Red
+  { bg: '#43A047', text: 'white' },  // Bright Green
+  { bg: '#1E88E5', text: 'white' },  // Bright Blue
+  { bg: '#8E24AA', text: 'white' },  // Purple
+  { bg: '#FB8C00', text: 'white' },  // Orange
+  { bg: '#00ACC1', text: 'white' },  // Cyan
+  { bg: '#3949AB', text: 'white' },  // Indigo
+  { bg: '#D81B60', text: 'white' },  // Pink
+  { bg: '#5D4037', text: 'white' },  // Brown
+  { bg: '#546E7A', text: 'white' },  // Blue Grey
+  { bg: '#F57F17', text: 'white' },  // Dark Yellow
+  { bg: '#00897B', text: 'white' },  // Teal
+  { bg: '#7CB342', text: 'white' },  // Light Green
+  { bg: '#039BE5', text: 'white' },  // Light Blue
+  { bg: '#C62828', text: 'white' },  // Dark Red
+  { bg: '#6A1B9A', text: 'white' },  // Dark Purple
+  { bg: '#2E7D32', text: 'white' },  // Dark Green
+  { bg: '#283593', text: 'white' },  // Dark Blue
+  { bg: '#EF6C00', text: 'white' },  // Dark Orange
+  { bg: '#00695C', text: 'white' }   // Dark Teal
 ];
 
 // Rwanda public holidays for 2025
@@ -128,20 +136,25 @@ const TeamCalendar: React.FC = () => {
 
   // Transform leave applications to calendar events
   const teamLeaves = useMemo(() => {
-    return teamLeaveApplications.map(app => ({
-      id: app.id,
-      userId: app.employeeId,
-      title: `${app.employee?.name || 'Employee'} - ${app.leaveType.name} Leave`,
-      start: app.startDate,
-      end: app.endDate,
-      leaveType: app.leaveType.name,
-      extendedProps: {
-        employeeName: app.employee?.name || 'Employee',
-        avatar: app.employee?.avatarUrl || `https://ui-avatars.com/api/?name=${app.employee?.name || 'U'}`,
-        department: app.employee?.department || 'Unknown',
-        userId: app.employeeId
+    return teamLeaveApplications.map(app => {
+      // Add one day to the end date to make it inclusive
+      const endDate = new Date(app.endDate);
+      endDate.setDate(endDate.getDate() + 1);
+      return {
+        id: app.id,
+        userId: app.employeeId,
+        title: `${app.employee?.name || 'Employee'} - ${app.leaveType.name} Leave`,
+        start: app.startDate,
+        end: endDate.toISOString().split('T')[0],
+        leaveType: app.leaveType.name,
+        extendedProps: {
+          employeeName: app.employee?.name || 'Employee',
+          avatar: app.employee?.avatarUrl || `https://ui-avatars.com/api/?name=${app.employee?.name || 'U'}`,
+          department: app.employee?.department || 'Unknown',
+          userId: app.employeeId
+        }
       }
-    }));
+    });
   }, [teamLeaveApplications]);
 
   // Format holidays for the calendar
@@ -329,7 +342,7 @@ const TeamCalendar: React.FC = () => {
                     <div class="p-2 bg-gray-800 text-white rounded shadow-lg text-xs">
                       <div class="font-bold">${info.event.extendedProps?.employeeName || ''}</div>
                       <div>${info.event.title.split(' - ')[1] || info.event.title}</div>
-                      <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(info.event.end || info.event.start!).toLocaleDateString()}</div>
+                      <div>${new Date(info.event.start!).toLocaleDateString()} - ${new Date(new Date(info.event.end!).getTime() - 86400000).toLocaleDateString()}</div>
                     </div>
                   `;
                   

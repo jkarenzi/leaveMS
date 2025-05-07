@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { errorToast, successToast } from "../../utils/toast";
-import { getOwnProfile, getUsers, initiateAuth, login } from "../actions/authActions";
+import { getOwnProfile, getUsers, initiateAuth, login, updateEmployee } from "../actions/authActions";
 import { User } from "../../types/User";
 
 
@@ -18,7 +18,9 @@ interface InitialState {
     loggingOut: boolean,
     fetching: boolean,
     users: User[],
-    fetchStatus: 'successful' | 'failed' | 'idle'
+    fetchStatus: 'successful' | 'failed' | 'idle',
+    updateUserStatus: 'successful' | 'failed' | 'idle',
+    isUpdatingUser: boolean
 }
 
 const initialState: InitialState = {
@@ -35,7 +37,9 @@ const initialState: InitialState = {
     loggingOut: false,
     fetching: false,
     users: [],
-    fetchStatus: 'idle'
+    fetchStatus: 'idle',
+    isUpdatingUser: false,
+    updateUserStatus: 'idle'
 }
 
 
@@ -51,6 +55,9 @@ const userSlice = createSlice({
         },
         resetInitializeStatus: (state) => {
             state.initializeStatus = 'idle'
+        },
+        resetUpdateEmployeeStatus: (state) => {
+            state.updateUserStatus = 'idle'
         }
     },
     extraReducers: (builder) => {
@@ -106,8 +113,23 @@ const userSlice = createSlice({
             state.fetchStatus = 'failed'
             errorToast(action.payload as string)
         })
+        .addCase(updateEmployee.pending, (state) => {
+            state.isUpdatingUser = true;
+            state.updateUserStatus = 'idle';
+        })
+        .addCase(updateEmployee.fulfilled, (state) => {
+            state.isUpdatingUser = false;
+            state.updateUserStatus = 'successful';
+            
+            successToast('Employee updated successfully');
+        })
+        .addCase(updateEmployee.rejected, (state, action) => {
+            state.isUpdatingUser = false;
+            state.updateUserStatus = 'failed';
+            errorToast(action.payload as string);
+        })
     }
 })
 
-export const {logout, resetInitializeStatus} = userSlice.actions
+export const {logout, resetInitializeStatus, resetUpdateEmployeeStatus} = userSlice.actions
 export default userSlice.reducer

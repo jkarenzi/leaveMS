@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlus, FaEdit, FaTrash, FaExclamationTriangle } from 'react-icons/fa';
+import { FaPlus, FaEdit, FaTrash, FaExclamationTriangle, FaFileDownload } from 'react-icons/fa';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import { ClipLoader } from 'react-spinners';
@@ -12,6 +12,7 @@ import {
 } from '../../redux/actions/leaveTypeActions';
 import { resetLeaveTypeStatus } from '../../redux/slices/leaveSlice';
 import { LeaveType } from '../../types/LeaveType';
+import * as XLSX from 'xlsx';
 
 
 const LeaveTypes: React.FC = () => {
@@ -137,6 +138,30 @@ const LeaveTypes: React.FC = () => {
     dispatch(deleteLeaveType(selectedLeaveType.id));
   };
 
+  // Handle exporting leave types to Excel
+  const handleExport = () => {
+    const data = leaveTypes.map(leaveType => ({
+      'Type': leaveType.name,
+      'Default Annual Allocation': `${leaveType.defaultAnnualAllocation} days`,
+      'Accrual Rate': `${leaveType.accrualRate.toFixed(2)} days/month`,
+      'Max Carryover Days': `${leaveType.maxCarryoverDays} days`,
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    // Set column widths for better readability
+    const wscols = [
+      { wch: 25 }, // Type name
+      { wch: 25 }, // Default annual allocation
+      { wch: 20 }, // Accrual rate
+      { wch: 20 }  // Max carryover days
+    ];
+    worksheet['!cols'] = wscols;
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Leave Types");
+    XLSX.writeFile(workbook, "leave_types.xlsx");
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -144,14 +169,24 @@ const LeaveTypes: React.FC = () => {
           <h1 className="text-2xl font-bold">Leave Types</h1>
           <p className="text-gray-600">Manage leave types and policies</p>
         </div>
-        <button
-          onClick={handleAddNew}
-          disabled={submitting}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
-        >
-          <FaPlus className="mr-2" />
-          Add Leave Type
-        </button>
+        <div className='flex space-x-3'>
+          <button
+            onClick={handleExport}
+            disabled={fetchingTypes || leaveTypes.length === 0}
+            className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-50 flex items-center disabled:opacity-50"
+          >
+            <FaFileDownload className="mr-2" />
+            Export
+          </button>
+          <button
+            onClick={handleAddNew}
+            disabled={submitting}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center disabled:opacity-50"
+          >
+            <FaPlus className="mr-2" />
+            Add Leave Type
+          </button>
+        </div>
       </div>
       
       {/* Leave types table */}

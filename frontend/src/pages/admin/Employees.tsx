@@ -13,6 +13,9 @@ import {
 import { getAllLeaveTypes } from '../../redux/actions/leaveTypeActions';
 import { LeaveBalance, UpdateLeaveBalanceFormData, UserWithLeaveBalances } from '../../types/LeaveBalance';
 import * as XLSX from 'xlsx';
+import { updateEmployee } from '../../redux/actions/authActions';
+import { resetUpdateEmployeeStatus } from '../../redux/slices/userSlice';
+import EmployeeCalendarModal from './EmployeeCalendar'
 
 
 const Employees: React.FC = () => {
@@ -25,7 +28,7 @@ const Employees: React.FC = () => {
     leaveBalanceStatus 
   } = useAppSelector(state => state.leave);
   const { leaveTypes } = useAppSelector(state => state.leave);
-  const { user } = useAppSelector(state => state.user);
+  const { user, isUpdatingUser, updateUserStatus } = useAppSelector(state => state.user);
 
   // States
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,6 +38,10 @@ const Employees: React.FC = () => {
   const [isAdjustBalanceModalOpen, setIsAdjustBalanceModalOpen] = useState(false);
   const [selectedBalance, setSelectedBalance] = useState<LeaveBalance | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [employeeToEdit, setEmployeeToEdit] = useState<UserWithLeaveBalances | null>(null);
+  const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+const [selectedEmployeeForCalendar, setSelectedEmployeeForCalendar] = useState<UserWithLeaveBalances | null>(null);
 
   // Export employee data to Excel
   const handleExport = () => {
@@ -82,6 +89,7 @@ const Employees: React.FC = () => {
     if (leaveBalanceStatus === 'successful' && !submitting) {
       setIsAdjustBalanceModalOpen(false);
       setSelectedBalance(null);
+      setIsViewModalOpen(false);
     }
   }, [leaveBalanceStatus, submitting]);
 
@@ -113,6 +121,19 @@ const Employees: React.FC = () => {
   const handleViewEmployee = (employee: UserWithLeaveBalances) => {
     setSelectedEmployee(employee);
     setIsViewModalOpen(true);
+  };
+
+  const handleEditEmployee = (employee: UserWithLeaveBalances) => {
+    setEmployeeToEdit(employee);
+    setIsEditModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  // Handle opening the employee leave calendar modal
+  const handleViewEmployeeCalendar = (employee: UserWithLeaveBalances) => {
+    setSelectedEmployeeForCalendar(employee);
+    setIsCalendarModalOpen(true);
+    setOpenMenuId(null);
   };
 
   // Close dropdown when clicking outside
@@ -188,6 +209,41 @@ const Employees: React.FC = () => {
   // const formatDate = (dateString: string) => {
   //   return format(new Date(dateString), 'MMM d, yyyy');
   // };
+
+  const editEmployeeSchema = Yup.object().shape({
+    department: Yup.string().required('Department is required'),
+    role: Yup.string()
+      .oneOf(['admin', 'manager', 'staff'], 'Invalid role')
+      .required('Role is required')
+  });
+
+  // Initialize useFormik for employee edit
+  const editEmployeeFormik = useFormik({
+    initialValues: {
+      department: employeeToEdit?.department || '',
+      role: employeeToEdit?.role || 'staff'
+    },
+    enableReinitialize: true,
+    validationSchema: editEmployeeSchema,
+    onSubmit: (values) => { 
+      console.log(values)
+      dispatch(updateEmployee({
+        id: employeeToEdit!.id,
+        formData: {
+          department: values.department,
+          role: values.role
+        }
+      }))
+    }
+  });
+
+  useEffect(() => {
+    if(updateUserStatus === 'successful') {
+      setIsEditModalOpen(false);
+      dispatch(getAllLeaveBalances());
+      dispatch(resetUpdateEmployeeStatus())
+    }
+  })
 
   return (
     <div className="p-6">
@@ -349,6 +405,18 @@ const Employees: React.FC = () => {
                                   Manage Leave Balances
                                 </button>
                               )}
+                              {user?.role === 'admin' && <button
+                                onClick={() => handleEditEmployee(employee)}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                Edit Employee
+                              </button>}
+                              <button
+                                onClick={() => handleViewEmployeeCalendar(employee)}
+                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                View Leave Calendar
+                              </button>
                             </div>
                           </div>
                         )}
@@ -576,6 +644,101 @@ const Employees: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Edit Employee Modal */}
+      {isEditModalOpen && employeeToEdit && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="flex justify-between items-center border-b p-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Edit Employee
+              </h3>
+              <button 
+                onClick={() => setIsEditModalOpen(false)} 
+                className="text-gray-400 hover:text-gray-500 focus:outline-none"
+              >
+                <FaTimes />
+              </button>
+            </div>
+            
+            {/* Use useFormik hook similar to your adjustBalanceFormik pattern */}
+            <form onSubmit={editEmployeeFormik.handleSubmit}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
+                    Department
+                  </label>
+                  <select
+                    id="department"
+                    name="department"
+                    value={editEmployeeFormik.values.department}
+                    onChange={editEmployeeFormik.handleChange}
+                    onBlur={editEmployeeFormik.handleBlur}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="Engineering">Engineering</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Sales">Sales</option>
+                  </select>
+                  {editEmployeeFormik.touched.department && editEmployeeFormik.errors.department ? (
+                    <div className="mt-1 text-sm text-red-600">{editEmployeeFormik.errors.department}</div>
+                  ) : null}
+                </div>
+                
+                <div>
+                  <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-1">
+                    Role
+                  </label>
+                  <select
+                    id="role"
+                    name="role"
+                    value={editEmployeeFormik.values.role}
+                    onChange={editEmployeeFormik.handleChange}
+                    onBlur={editEmployeeFormik.handleBlur}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="staff">Staff</option>
+                    <option value="manager">Manager</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                  {editEmployeeFormik.touched.role && editEmployeeFormik.errors.role ? (
+                    <div className="mt-1 text-sm text-red-600">{editEmployeeFormik.errors.role}</div>
+                  ) : null}
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 px-4 py-3 border-t flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 flex items-center"
+                  disabled={editEmployeeFormik.isSubmitting}
+                >
+                  {isUpdatingUser && <ClipLoader size={16} color="#FFFFFF" className="mr-2" />}
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Employee Leave Calendar Modal */}
+      {isCalendarModalOpen && selectedEmployeeForCalendar && (
+        <EmployeeCalendarModal 
+          employee={selectedEmployeeForCalendar}
+          onClose={() => setIsCalendarModalOpen(false)}
+        />
       )}
     </div>
   );

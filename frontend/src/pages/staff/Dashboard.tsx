@@ -66,7 +66,7 @@ const StaffDashboard: React.FC = () => {
   };
 
   // Get recent leave applications
-  const recentLeaves = myLeaveApplications
+  const recentLeaves = [...myLeaveApplications]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 3);
 
@@ -117,9 +117,9 @@ const StaffDashboard: React.FC = () => {
                     <p className={`text-2xl font-bold ${colors.text}`}>
                       {balance.balance.toFixed(2)} days
                     </p>
-                    {balance.carriedOver > 0 && (
-                      <p className="text-xs mt-1">
-                        Including {balance.carriedOver.toFixed(2)} carried over
+                    {balance.excessDays > 0 && (
+                      <p className="text-xs mt-1 text-red-600 font-medium">
+                        {balance.excessDays.toFixed(2)} days expire on Jan 31st
                       </p>
                     )}
                   </div>

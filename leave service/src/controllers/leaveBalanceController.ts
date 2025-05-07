@@ -81,6 +81,7 @@ export default class LeaveBalanceController {
   
     static async getAllLeaveBalances(req: Request, res: Response) {
         try {
+            await refreshUserCache()
             const leaveBalances = await leaveBalanceRepository.find({
                 relations: ['leaveType'],
                 order: { employeeId: 'ASC', leaveType: { name: 'ASC' } }

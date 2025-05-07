@@ -9,6 +9,14 @@ interface IAuth {
     user: User | null
 }
 
+interface UpdateEmployeeData {
+    id: string;
+    formData: {
+      department?: string;
+      role?: string;
+    };
+}
+
 // interface IParams {
 //     name?:string,
 //     startYear?:string,
@@ -62,3 +70,18 @@ export const getUsers = createAsyncThunk<User[]>("user/getAll", async (_, thunkA
       return thunkAPI.rejectWithValue(error);
     }
 });
+
+export const updateEmployee = createAsyncThunk<User, UpdateEmployeeData>(
+    "user/update",
+    async (data, thunkAPI) => {
+      try {
+        const { id, formData } = data;
+        const response = await axios.put(`auth/users/${id}`, formData);
+        
+        return response.data.user;
+      } catch (error) {
+        return thunkAPI.rejectWithValue(error);
+      }
+    }
+);
+
