@@ -8,6 +8,14 @@ services:
     depends_on:
       - auth-service
       - leave-service
+    environment:
+      - VITE_AUTH_URL=${VITE_AUTH_URL}
+      - VITE_LEAVE_URL=${VITE_LEAVE_URL} 
+      - VITE_CLOUDINARY_UPLOAD_PRESET=${VITE_CLOUDINARY_UPLOAD_PRESET}
+      - VITE_CLOUDINARY_NAME=${VITE_CLOUDINARY_NAME}
+      - VITE_PUSHER_CLUSTER=${VITE_PUSHER_CLUSTER}
+      - VITE_PUSHER_KEY=${VITE_PUSHER_KEY}
+      - VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
     networks:
       - lms-network
 
@@ -16,6 +24,14 @@ services:
     ports:
       - "4000:4000"
       - "5005:5005"  # Remote debugging port
+    environment:
+      - DB_URL=${DB_URL}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - LEAVE_URL=${LEAVE_URL}  
     networks:
       - lms-network
 
@@ -26,6 +42,20 @@ services:
       - "9229:9229"  # Node.js debugging port
     depends_on:
       - auth-service
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+      - DB_PASS=${DB_PASS}
+      - JWT_SECRET=${JWT_SECRET}
+      - PUSHER_APP_ID=${PUSHER_APP_ID}
+      - PUSHER_KEY=${PUSHER_KEY}
+      - PUSHER_SECRET=${PUSHER_SECRET}
+      - PUSHER_CLUSTER=${PUSHER_CLUSTER}
+      - NODE_ENV=${NODE_ENV}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}  
     networks:
       - lms-network
 
